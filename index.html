@@ -1435,7 +1435,7 @@ function renderLibrary() {
       <div class="es-icon">📚</div>
       <h3>${state.books.length===0?'Tu biblioteca está vacía':'Sin resultados'}</h3>
       <p>${state.books.length===0?'Sube tu primer libro para comenzar.':'Prueba con otro término de búsqueda o filtro.'}</p>
-      ${state.books.length===0?'<button class="btn-upload" style="margin:0 auto" id="btn-upload-book">+ Subir primer libro</button>':''}
+      ${state.books.length===0?'<button class="btn-upload" style="margin:0 auto" onclick="openUpload()">+ Subir primer libro</button>':''}
     </div>`;
   } else {
     shelf.innerHTML = books.map(book => buildBookCard(book)).join('');
@@ -2437,6 +2437,13 @@ window.updateUserUI = updateUserUI;
 window.loadUserDataFirebase = loadUserDataFirebase;
 window.showToast = showToast;
 
+
+// ─── GLOBAL CLICK DELEGATION FOR DYNAMIC BUTTONS ───
+document.addEventListener('click', function(e) {
+  if (e.target.closest('#btn-upload-book') || e.target.closest('.btn-upload')) {
+    openUpload();
+  }
+});
 
 // ─── ATTACH EVENT LISTENERS AFTER DOM IS READY ───
 function attachEventListeners() {
