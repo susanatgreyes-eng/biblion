@@ -175,7 +175,7 @@
 
   /* ── READER THEMES ── */
   .theme-dark { --reader-bg:#0f0f14; --reader-text:#e8e8f0; --reader-surface:#1a1a2e; --reader-border:#2a2a40; --reader-muted:#8080a0; }
-  .theme-sepia { --reader-bg:#fafafa; --reader-text:#1a1a2e; --reader-surface:#f0f0f5; --reader-border:#dcdce8; --reader-muted:#7070a0; }
+  .theme-sepia { --reader-bg:#e8d5b0; --reader-text:#1a1a2e; --reader-surface:#f0f0f5; --reader-border:#dcdce8; --reader-muted:#7070a0; }
   .theme-light { --reader-bg:#ffffff; --reader-text:#0f0f14; --reader-surface:#f5f5f8; --reader-border:#e0e0ec; --reader-muted:#8080a0; }
   .theme-night { --reader-bg:#080810; --reader-text:#c8c8e0; --reader-surface:#10101a; --reader-border:#20203a; --reader-muted:#7070a0; }
 
@@ -388,7 +388,7 @@
   .rs-theme-btn { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
   .rs-theme-btn.active { border-color: var(--amber); }
   .rs-theme-dark { background: #1a1208; }
-  .rs-theme-sepia { background: #f5efe0; }
+  .rs-theme-sepia { background: #e8d5b0; }
   .rs-theme-light { background: #ffffff; }
   .rs-theme-night { background: #0d1117; }
   .rs-size-row { display: flex; align-items: center; gap: 0.75rem; }
@@ -702,7 +702,7 @@ document.head.appendChild(mLink);
               <label>URL de portada</label>
               <input type="url" id="f-cover" placeholder="https://..." oninput="previewCover(this.value)">
             </div>
-            <button class="cover-fetch-btn" onclick="autoFetchCover()">🔍 Buscar portada automáticamente</button>
+            <button class="cover-fetch-btn" onclick="autoFetchCover()">🌐 Buscar portada en internet</button>
           </div>
         </div>
         <div class="form-row"><label>Título *</label><input type="text" id="f-title" placeholder="Título del libro"></div>
@@ -1239,11 +1239,8 @@ function processFile(file) {
   document.getElementById('dz-subtitle').textContent = format + ' · ' + formatBytes(file.size);
   const nameParts = file.name.replace(/\.(epub|pdf|mobi|azw3|fb2|txt)$/i,'').split(/[-_]/);
   if (!document.getElementById('f-title').value) document.getElementById('f-title').value = nameParts.join(' ').trim();
-  // Auto-fetch cover after file selected
-  setTimeout(() => {
-    const title = document.getElementById('f-title').value;
-    if (title && !document.getElementById('f-cover').value) autoFetchCover();
-  }, 300);
+  // Cover will be extracted from the file itself during upload
+  // User can still click "Buscar portada" to fetch from internet
 }
 
 // ─── EXTRACT COVER FROM FIRST PAGE ───
@@ -1372,25 +1369,25 @@ async function uploadBook() {
       document.getElementById('progress-fill').style.width = '50%';
       await saveFileToDB(id, fileData);
 
-      // 4. Subir a R2 si hay sesión activa
-      if (state.currentUser?.uid) {
+    } catch(e) {
+      showToast('⚠️ Error al leer archivo: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Agregar a biblioteca';
+      return;
+    }
+
+    // 4. Subir a R2 (en su propio try/catch — si falla, el libro ya está guardado localmente)
+    if (state.currentUser?.uid) {
+      try {
         document.getElementById('progress-label').textContent = 'Subiendo a la nube ☁️...';
         document.getElementById('progress-fill').style.width = '60%';
         r2Url = await uploadToR2(id, state.currentUser.uid, fileData, (pct, msg) => {
           document.getElementById('progress-fill').style.width = (60 + pct * 0.35) + '%';
           document.getElementById('progress-label').textContent = msg;
         });
-        if (r2Url) {
-          showToast('☁️ Libro guardado en la nube');
-        } else {
-          showToast('⚠️ Guardado localmente. La nube falló, se reintentará.');
-        }
+      } catch(e) {
+        // R2 failed silently — book is already saved locally
+        r2Url = null;
       }
-
-    } catch(e) {
-      showToast('⚠️ Error al guardar archivo: ' + e.message);
-      btn.disabled = false; btn.textContent = 'Agregar a biblioteca';
-      return;
     }
   } else {
     document.getElementById('progress-fill').style.width = '90%';
@@ -2672,7 +2669,7 @@ function ttsSkipBack() {
 // Stop TTS when closing reader
 const _origCloseReader = closeReader;
 function closeReader() {
-  ttsStop();
+  try { ttsStop(); } catch(e) {}
   ttsPlaying = false;
   ttsCurrentIdx = 0;
   ttsParagraphs = [];
