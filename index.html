@@ -2079,9 +2079,7 @@ function renderCheckoutLogSidebar() {
 function formatBytes(b){if(b<1024)return b+' B';if(b<1024*1024)return(b/1024).toFixed(1)+' KB';if(b<1024*1024*1024)return(b/1024/1024).toFixed(1)+' MB';return(b/1024/1024/1024).toFixed(2)+' GB';}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),2800);}
 
-// Modal close on overlay click
-document.getElementById('upload-modal').addEventListener('click',function(e){if(e.target===this)closeUpload();});
-// upgrade-modal removed
+// Modal close on overlay click — moved inside init() to guarantee DOM is ready
 
 // Keyboard navigation in reader
 document.addEventListener('keydown', e=>{
@@ -2480,6 +2478,10 @@ function attachEventListeners() {
   const downloadBtn = document.getElementById('btn-download-lib');
   if (downloadBtn) downloadBtn.addEventListener('click', () => downloadLibrary());
 
+  // Modal overlay close
+  const uploadModal = document.getElementById('upload-modal');
+  if (uploadModal) uploadModal.addEventListener('click', function(e) { if (e.target === this) closeUpload(); });
+
   // Search input
   const searchField = document.getElementById('search-input-field');
   if (searchField) searchField.addEventListener('input', () => filterBooks());
@@ -2495,7 +2497,11 @@ async function init() {
   // loadState will check if we're in guest mode
   loadState();
 }
-init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 // ─── TEXT-TO-SPEECH (TTS) ───
 let ttsUtterance = null;
