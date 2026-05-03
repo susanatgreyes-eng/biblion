@@ -552,7 +552,7 @@ document.head.appendChild(mLink);
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 11V2M4 7l4 4 4-4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Descargar
     </button>
-    <button class="btn-upload" id="btn-upload-book">
+    <button class="btn-upload" id="btn-upload-book" onclick="openUpload()">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 5l4-4 4 4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Subir libro
     </button>
@@ -898,15 +898,15 @@ document.head.appendChild(mLink);
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── TTS VARIABLES (must be at top so onclick handlers can access them) ───
-let ttsUtterance = null;
-let ttsPlaying = false;
-let ttsParagraphs = [];
-let ttsCurrentIdx = 0;
-let ttsVoices = [];
-let ttsSelectedVoice = null;
-let ttsRate = 1.0;
-let ttsVol = 1.0;
+// ─── TTS VARIABLES (var = no temporal dead zone, safe for inline onclick) ───
+var ttsUtterance = null;
+var ttsPlaying = false;
+var ttsParagraphs = [];
+var ttsCurrentIdx = 0;
+var ttsVoices = [];
+var ttsSelectedVoice = null;
+var ttsRate = 1.0;
+var ttsVol = 1.0;
 
 // ─── CLOUDFLARE R2 CONFIG ───
 const R2_ENDPOINT = 'https://27928342d073d8b65225ae569c655b4d.r2.cloudflarestorage.com';
@@ -1092,7 +1092,16 @@ function loadFileFromDB(id) {
     const key = dbKey(id);
     const tx = db.transaction('books','readonly');
     const req = tx.objectStore('books').get(key);
-    req.onsuccess = () => resolve(req.result?.fileData || null);
+    req.onsuccess = () => {
+      if (req.result?.fileData) return resolve(req.result.fileData);
+      // Fallback: try guest key (book saved before login)
+      const guestKey = 'guest:' + id;
+      if (guestKey === key) return resolve(null);
+      const tx2 = db.transaction('books','readonly');
+      const req2 = tx2.objectStore('books').get(guestKey);
+      req2.onsuccess = () => resolve(req2.result?.fileData || null);
+      req2.onerror = () => resolve(null);
+    };
     req.onerror = () => resolve(null);
   });
 }
@@ -2444,6 +2453,31 @@ window.updateStorageBar = updateStorageBar;
 window.updateUserUI = updateUserUI;
 window.loadUserDataFirebase = loadUserDataFirebase;
 window.showToast = showToast;
+window.nextPage = nextPage;
+window.prevPage = prevPage;
+window.toggleTTS = toggleTTS;
+window.ttsTogglePlay = ttsTogglePlay;
+window.ttsStop = ttsStop;
+window.ttsNext = ttsNext;
+window.ttsPrev = ttsPrev;
+window.ttsSelectVoice = ttsSelectVoice;
+window.ttsSetRate = ttsSetRate;
+window.ttsSetVol = ttsSetVol;
+window.toggleReaderSettings = toggleReaderSettings;
+window.setReaderFont = setReaderFont;
+window.setReaderTheme = setReaderTheme;
+window.changeFontSize = changeFontSize;
+window.toggleNotes = toggleNotes;
+window.addNote = addNote;
+window.deleteNote = deleteNote;
+window.setReadProgress = setReadProgress;
+window.showCtxMenu = showCtxMenu;
+window.ctxAction = ctxAction;
+window.startLongPress = startLongPress;
+window.cancelLongPress = cancelLongPress;
+window.toggleFavorite = toggleFavorite;
+window.saveEditBook = saveEditBook;
+window.hidePagingControls = hidePagingControls;
 
 
 // ─── GLOBAL CLICK DELEGATION FOR DYNAMIC BUTTONS ───
