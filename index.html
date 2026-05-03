@@ -898,6 +898,16 @@ document.head.appendChild(mLink);
 <div class="toast" id="toast"></div>
 
 <script>
+// ─── TTS VARIABLES (must be at top so onclick handlers can access them) ───
+let ttsUtterance = null;
+let ttsPlaying = false;
+let ttsParagraphs = [];
+let ttsCurrentIdx = 0;
+let ttsVoices = [];
+let ttsSelectedVoice = null;
+let ttsRate = 1.0;
+let ttsVol = 1.0;
+
 // ─── CLOUDFLARE R2 CONFIG ───
 const R2_ENDPOINT = 'https://27928342d073d8b65225ae569c655b4d.r2.cloudflarestorage.com';
 const R2_BUCKET = 'biblion-libros';
@@ -2504,14 +2514,6 @@ if (document.readyState === 'loading') {
 }
 
 // ─── TEXT-TO-SPEECH (TTS) ───
-let ttsUtterance = null;
-let ttsPlaying = false;
-let ttsParagraphs = [];
-let ttsCurrentIdx = 0;
-let ttsVoices = [];
-let ttsSelectedVoice = null;
-let ttsRate = 1.0;
-let ttsVol = 1.0;
 
 function toggleTTS() {
   const panel = document.getElementById('tts-panel');
