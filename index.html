@@ -171,12 +171,42 @@
       const { doc, getDoc } = window._firebase;
       const snap = await getDoc(doc(db_firebase, 'libraries', uid));
       if (window.state) {
+        let cloudBooks = [];
         if (snap.exists()) {
           const data = snap.data();
-          window.state.books = (data.books || []).map(b => ({ ...b, fileData: null, checkoutLog: b.checkoutLog || [] }));
-        } else {
-          window.state.books = [];
+          cloudBooks = (data.books || []).map(b => ({ ...b, fileData: null, checkoutLog: b.checkoutLog || [] }));
         }
+        // Merge with any books saved locally as guest (before login)
+        const guestKey = userKey('guest@biblion.local');
+        let guestBooks = [];
+        try {
+          const saved = localStorage.getItem(guestKey);
+          if (saved) guestBooks = JSON.parse(saved);
+        } catch(e) {}
+        // Also try IndexedDB for guest meta
+        if (db) {
+          await new Promise(resolve => {
+            const tx = db.transaction('books','readonly');
+            const req = tx.objectStore('books').get('__meta__' + guestKey);
+            req.onsuccess = () => {
+              if (req.result?.fileData) {
+                try { guestBooks = JSON.parse(req.result.fileData); } catch(e) {}
+              }
+              resolve();
+            };
+            req.onerror = () => resolve();
+          });
+        }
+        if (guestBooks.length > 0) {
+          // Add guest books that aren't already in cloud books
+          const cloudIds = new Set(cloudBooks.map(b => b.id));
+          const newBooks = guestBooks.filter(b => !b.id.startsWith('demo') && !cloudIds.has(b.id));
+          if (newBooks.length > 0) {
+            cloudBooks = [...cloudBooks, ...newBooks];
+            showToast('📚 ' + newBooks.length + ' libro(s) de tu sesión anterior importados');
+          }
+        }
+        window.state.books = cloudBooks.length > 0 ? cloudBooks : [];
       }
     } catch(e) {
       console.warn('Firebase load error:', e);
@@ -217,7 +247,7 @@
 
   /* ── READER THEMES ── */
   .theme-dark { --reader-bg:#0f0f14; --reader-text:#e8e8f0; --reader-surface:#1a1a2e; --reader-border:#2a2a40; --reader-muted:#8080a0; }
-  .theme-sepia { --reader-bg:#e8d5b0; --reader-text:#1a1a2e; --reader-surface:#f0f0f5; --reader-border:#dcdce8; --reader-muted:#7070a0; }
+  .theme-sepia { --reader-bg:#c8a97a; --reader-text:#1a0e00; --reader-surface:#d4b88a; --reader-border:#a87c4a; --reader-muted:#5c3a1e; }
   .theme-light { --reader-bg:#ffffff; --reader-text:#0f0f14; --reader-surface:#f5f5f8; --reader-border:#e0e0ec; --reader-muted:#8080a0; }
   .theme-night { --reader-bg:#080810; --reader-text:#c8c8e0; --reader-surface:#10101a; --reader-border:#20203a; --reader-muted:#7070a0; }
 
@@ -226,8 +256,8 @@
 
   /* ─── TOPBAR ─── */
   header { background: #0f0f14; color: #ffffff; padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 3px solid var(--amber); box-shadow: 0 2px 16px rgba(15,15,20,0.18); }
-  .logo { font-family: Georgia, 'Noto Serif', 'Times New Roman', serif; font-size: 1.5rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 0.5rem; }
-  .logo span { color: var(--amber); font-style: italic; }
+  .logo { color: #ffffff; font-family: Georgia, 'Noto Serif', 'Times New Roman', serif; font-size: 1.5rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 0.5rem; }
+  .logo span { color: #c084fc; font-style: italic; }
   .header-right { display: flex; align-items: center; gap: 1rem; }
   .storage-bar-wrap { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: #8080a0; letter-spacing: 0.05em; cursor: pointer; }
 
@@ -430,7 +460,7 @@
   .rs-theme-btn { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
   .rs-theme-btn.active { border-color: var(--amber); }
   .rs-theme-dark { background: #1a1208; }
-  .rs-theme-sepia { background: #e8d5b0; }
+  .rs-theme-sepia { background: #c8a97a; }
   .rs-theme-light { background: #ffffff; }
   .rs-theme-night { background: #0d1117; }
   .rs-size-row { display: flex; align-items: center; gap: 0.75rem; }
@@ -537,7 +567,7 @@
 // ─── PWA: SERVICE WORKER INLINE (para instalación en Android/Chrome) ───
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'biblion-v7';
+    const CACHE = 'biblion-v9';
     self.addEventListener('install', e => {
       self.skipWaiting();
       e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])));
@@ -583,17 +613,8 @@ document.head.appendChild(mLink);
 
 <!-- ─── HEADER ─── -->
 <header>
-  <div class="logo">Biblio<span>n</span></div>
+  <div class="logo">BIBLIO<span>N</span></div>
   <div class="header-right">
-    <div class="storage-bar-wrap" title="Almacenamiento usado">
-      <span id="storage-used">0 MB</span>
-      <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
-      <span>/ <span id="storage-limit-label">10 GB</span></span>
-    </div>
-    <button class="btn-header-action" id="btn-download-lib">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 11V2M4 7l4 4 4-4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      Descargar
-    </button>
     <button class="btn-upload" id="btn-upload-book" onclick="openUpload()">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 5l4-4 4 4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Subir libro
@@ -609,17 +630,17 @@ document.head.appendChild(mLink);
     <input type="text" id="search-input" placeholder="Buscar título, autor, ISBN..." id="search-input-field">
   </div>
   <div class="filter-chips">
-    <div class="chip active" id="chip-all">📚 Todos</div>
-    <div class="chip" id="chip-reading">📖 Leyendo</div>
-    <div class="chip" id="chip-unread">🔖 No leídos</div>
-    <div class="chip" id="chip-finished">✅ Leídos</div>
-    <div class="chip" id="chip-pending">⏳ Pendientes</div>
+    <div class="chip active" id="chip-all">Todos</div>
+    <div class="chip" id="chip-reading">Leyendo</div>
+    <div class="chip" id="chip-finished">Leídos</div>
+    <div class="chip" id="chip-unread">No leídos</div>
+    <div class="chip" id="chip-favorites">Favoritos</div>
   </div>
   <div class="view-toggle" style="margin-left:auto">
-    <button class="view-btn active" id="grid-btn" >
+    <button class="view-btn active" id="grid-btn" onclick="setView('grid')">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
     </button>
-    <button class="view-btn" id="list-btn" >
+    <button class="view-btn" id="list-btn" onclick="setView('list')">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></svg>
     </button>
   </div>
@@ -632,9 +653,6 @@ document.head.appendChild(mLink);
       <h4>Biblioteca</h4>
       <ul>
         <li class="active" id="sec-all"><span>📚</span> Todos <span class="badge" id="badge-all">0</span></li>
-        <li id="sec-reading"><span>📖</span> Leyendo <span class="badge" id="badge-reading">0</span></li>
-        <li id="sec-finished"><span>✅</span> Leídos <span class="badge" id="badge-finished">0</span></li>
-        <li id="sec-wishlist"><span>⭐</span> Favoritos <span class="badge" id="badge-favorites">0</span></li>
       </ul>
     </div>
     <div class="sidebar-section">
@@ -643,11 +661,9 @@ document.head.appendChild(mLink);
     </div>
     <div class="sidebar-section">
       <h4>Almacenamiento</h4>
-      <div style="font-size:0.72rem;color:var(--muted);line-height:1.6">
+      <div style="font-size:0.72rem;color:var(--muted);line-height:1.8">
         <div id="stat-books">0 libros</div>
         <div id="stat-size">0 MB usados</div>
-        <div id="stat-limit">10 GB disponibles</div>
-
       </div>
     </div>
   </aside>
@@ -748,24 +764,19 @@ document.head.appendChild(mLink);
           </div>
         </div>
         <div class="form-row"><label>Título *</label><input type="text" id="f-title" placeholder="Título del libro"></div>
-        <div class="form-cols">
-          <div class="form-row"><label>Autor *</label><input type="text" id="f-author" placeholder="Nombre del autor"></div>
-          <div class="form-row"><label>Año</label><input type="text" id="f-year" placeholder="2024"></div>
+        <div class="form-row"><label>Autor *</label><input type="text" id="f-author" placeholder="Nombre del autor"></div>
+        <div class="form-row">
+          <label>Género</label>
+          <select id="f-genre">
+            <option value="">Sin categoría</option>
+            <option>Ficción</option><option>No ficción</option><option>Ciencia ficción</option>
+            <option>Fantasía</option><option>Misterio</option><option>Romance</option>
+            <option>Historia</option><option>Ciencia</option><option>Tecnología</option>
+            <option>Arte</option><option>Filosofía</option><option>Biografía</option>
+          </select>
         </div>
-        <div class="form-cols">
-          <div class="form-row">
-            <label>Género</label>
-            <select id="f-genre">
-              <option value="">Sin categoría</option>
-              <option>Ficción</option><option>No ficción</option><option>Ciencia ficción</option>
-              <option>Fantasía</option><option>Misterio</option><option>Romance</option>
-              <option>Historia</option><option>Ciencia</option><option>Tecnología</option>
-              <option>Arte</option><option>Filosofía</option><option>Biografía</option>
-            </select>
-          </div>
-          <div class="form-row"><label>ISBN</label><input type="text" id="f-isbn" placeholder="978-..."></div>
-        </div>
-        <div class="form-row"><label>Descripción</label><textarea id="f-desc" placeholder="Breve sinopsis del libro..."></textarea></div>
+        <!-- campos ocultos para compatibilidad -->
+        <input type="hidden" id="f-year" value=""><input type="hidden" id="f-isbn" value=""><textarea id="f-desc" style="display:none"></textarea>
         <button class="btn-primary" onclick="uploadBook()" id="btn-add">Agregar a biblioteca</button>
       </div>
     </div>
@@ -1019,26 +1030,21 @@ async function r2SignedRequest(method, key, body=null, contentType='application/
   });
 }
 
-// Sube archivo a R2
+// R2 upload — requiere CORS configurado en Cloudflare dashboard
 async function uploadToR2(bookId, userUid, fileData, onProgress) {
   try {
-    onProgress && onProgress(10, 'Subiendo a la nube...');
-    // Convert base64 to ArrayBuffer
-    const base64 = fileData.split(',')[1];
+    const key = `${userUid}/${bookId}`;
+    const base64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
-    for (let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const key = `${userUid}/${bookId}`;
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    if (onProgress) onProgress(10, 'Subiendo a la nube... ☁️');
     const resp = await r2SignedRequest('PUT', key, bytes.buffer, 'application/octet-stream');
-    if (resp.ok) {
-      onProgress && onProgress(100, '✅ Subido a la nube');
-      return `${R2_ENDPOINT}/${R2_BUCKET}/${encodeURIComponent(key)}`;
-    } else {
-      console.warn('R2 upload error:', resp.status, await resp.text());
-      return null;
-    }
+    if (!resp.ok) { console.warn('R2 upload status', resp.status); return null; }
+    if (onProgress) onProgress(100, '☁️ Guardado en la nube');
+    return `${R2_ENDPOINT}/${R2_BUCKET}/${encodeURIComponent(key)}`;
   } catch(e) {
-    console.warn('R2 upload failed:', e);
+    console.warn('R2 upload failed:', e.message);
     return null;
   }
 }
@@ -1147,12 +1153,21 @@ function loadFileFromDB(id) {
     const req = tx.objectStore('books').get(key);
     req.onsuccess = () => {
       if (req.result?.fileData) return resolve(req.result.fileData);
-      // Fallback: try guest key (book saved before login)
+      // Fallback 1: try guest key (book saved before login)
       const guestKey = 'guest:' + id;
-      if (guestKey === key) return resolve(null);
+      const guestEmailKey = 'guest@biblion.local:' + id;
+      if (guestKey === key || guestEmailKey === key) return resolve(null);
+      // Try both guest key formats
       const tx2 = db.transaction('books','readonly');
       const req2 = tx2.objectStore('books').get(guestKey);
-      req2.onsuccess = () => resolve(req2.result?.fileData || null);
+      req2.onsuccess = () => {
+        if (req2.result?.fileData) return resolve(req2.result.fileData);
+        // Fallback 2: try guest@biblion.local: prefix
+        const tx3 = db.transaction('books','readonly');
+        const req3 = tx3.objectStore('books').get(guestEmailKey);
+        req3.onsuccess = () => resolve(req3.result?.fileData || null);
+        req3.onerror = () => resolve(null);
+      };
       req2.onerror = () => resolve(null);
     };
     req.onerror = () => resolve(null);
@@ -1487,7 +1502,12 @@ function getFilteredBooks() {
     const matchSearch = !state.searchQuery || b.title.toLowerCase().includes(state.searchQuery) || b.author.toLowerCase().includes(state.searchQuery) || (b.genre||'').toLowerCase().includes(state.searchQuery);
     const sf = state.currentStatusFilter || 'all';
     const matchStatus = sf === 'all' || b.status === sf;
-    const matchSection = state.currentFilter === 'all' || (state.currentFilter === 'reading' && b.status === 'reading') || (state.currentFilter === 'finished' && b.status === 'finished') || (state.currentFilter === 'wishlist' && b.favorite);
+    const matchSection = state.currentFilter === 'all'
+      || (state.currentFilter === 'reading' && b.status === 'reading')
+      || (state.currentFilter === 'finished' && b.status === 'finished')
+      || (state.currentFilter === 'unread' && b.status === 'unread')
+      || (state.currentFilter === 'pending' && b.status === 'pending')
+      || (state.currentFilter === 'wishlist' && b.favorite);
     return matchSearch && matchStatus && matchSection;
   });
 }
@@ -2212,16 +2232,35 @@ document.addEventListener('click',e=>{if(!e.target.closest('#rs-btn')&&!e.target
 
 // ─── FILTERS / SEARCH ───
 function filterBooks(){state.searchQuery=document.getElementById('search-input').value.toLowerCase();renderLibrary();}
-function filterByStatus(status,el){state.currentStatusFilter=status;document.querySelectorAll('.filter-chips .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderLibrary();}
-function setSection(section,el){state.currentFilter=section;document.querySelectorAll('.sidebar ul li').forEach(l=>l.classList.remove('active'));el.classList.add('active');const titles={all:'Mi Biblioteca',reading:'Leyendo ahora',finished:'Libros terminados',wishlist:'Mis favoritos'};document.getElementById('section-title').textContent=titles[section];renderLibrary();}
+function filterByStatus(status,el){
+  state.currentFilter=status;
+  state.currentStatusFilter='all';
+  document.querySelectorAll('.filter-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.sidebar ul li').forEach(l=>l.classList.remove('active'));
+  if(status==='all'){const s=document.getElementById('sec-all');if(s)s.classList.add('active');}
+  const titles={all:'Mi Biblioteca',reading:'Leyendo',finished:'Leídos',unread:'No leídos',wishlist:'Favoritos'};
+  document.getElementById('section-title').textContent=titles[status]||'Mi Biblioteca';
+  renderLibrary();
+}
+function setSection(section,el){
+  state.currentFilter=section;
+  state.currentStatusFilter='all';
+  document.querySelectorAll('.sidebar ul li').forEach(l=>l.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.filter-chips .chip').forEach(c=>c.classList.remove('active'));
+  const chipId=section==='all'?'chip-all':null;
+  if(chipId){const c=document.getElementById(chipId);if(c)c.classList.add('active');}
+  const titles={all:'Mi Biblioteca'};
+  document.getElementById('section-title').textContent=titles[section]||'Mi Biblioteca';
+  renderLibrary();
+}
 function setView(v){state.view=v;document.getElementById('grid-btn').classList.toggle('active',v==='grid');document.getElementById('list-btn').classList.toggle('active',v==='list');renderLibrary();}
 
 // ─── UI UPDATES ───
 function updateBadges(){
-  document.getElementById('badge-all').textContent=state.books.length;
-  document.getElementById('badge-reading').textContent=state.books.filter(b=>b.status==='reading').length;
-  document.getElementById('badge-finished').textContent=state.books.filter(b=>b.status==='finished').length;
-  document.getElementById('badge-favorites').textContent=state.books.filter(b=>b.favorite).length;
+  const allEl=document.getElementById('badge-all'); if(allEl) allEl.textContent=state.books.length;
+  const favEl=document.getElementById('badge-favorites'); if(favEl) favEl.textContent=state.books.filter(b=>b.favorite).length;
 }
 function renderGenres(){
   const genres={};
@@ -2234,12 +2273,8 @@ function filterByGenre(genre){document.getElementById('search-input').value=genr
 function updateStorageBar(){
   const used=state.books.reduce((s,b)=>s+(b.size||0),0);
   const pct=Math.min(100,(used/MAX_STORAGE)*100);
-  document.getElementById('storage-fill').style.width=pct+'%';
-  document.getElementById('storage-used').textContent=formatBytes(used);
-  document.getElementById('stat-books').textContent=state.books.length+' libro'+(state.books.length!==1?'s':'');
-  document.getElementById('stat-size').textContent=formatBytes(used)+' usados';
-  if (pct>85) document.getElementById('storage-fill').style.background='#ef4444';
-  else document.getElementById('storage-fill').style.background='';
+  const statBooks=document.getElementById('stat-books'); if(statBooks) statBooks.textContent=state.books.length+' libro'+(state.books.length!==1?'s':'');
+  const statSize=document.getElementById('stat-size'); if(statSize) statSize.textContent=formatBytes(used)+' usados';
 }
 
 // ─── CHECKOUT LOG SIDEBAR ───
@@ -2667,8 +2702,8 @@ document.addEventListener('click', function(e) {
 function attachEventListeners() {
   // Filter chips
   const chips = {
-    'chip-all': 'all', 'chip-reading': 'reading',
-    'chip-unread': 'unread', 'chip-finished': 'finished', 'chip-pending': 'pending'
+    'chip-all': 'all', 'chip-reading': 'reading', 'chip-finished': 'finished',
+    'chip-unread': 'unread', 'chip-favorites': 'wishlist'
   };
   Object.entries(chips).forEach(([id, status]) => {
     const el = document.getElementById(id);
@@ -2677,8 +2712,7 @@ function attachEventListeners() {
 
   // Sidebar sections
   const sections = {
-    'sec-all': 'all', 'sec-reading': 'reading',
-    'sec-finished': 'finished', 'sec-wishlist': 'wishlist'
+    'sec-all': 'all'
   };
   Object.entries(sections).forEach(([id, section]) => {
     const el = document.getElementById(id);
@@ -2691,12 +2725,9 @@ function attachEventListeners() {
   if (gridBtn) gridBtn.addEventListener('click', () => setView('grid'));
   if (listBtn) listBtn.addEventListener('click', () => setView('list'));
 
-  // Upload and download buttons
+  // Upload button
   const uploadBtn = document.getElementById('btn-upload-book');
   if (uploadBtn) uploadBtn.addEventListener('click', () => openUpload());
-
-  const downloadBtn = document.getElementById('btn-download-lib');
-  if (downloadBtn) downloadBtn.addEventListener('click', () => downloadLibrary());
 
   // Modal overlay close
   const uploadModal = document.getElementById('upload-modal');
