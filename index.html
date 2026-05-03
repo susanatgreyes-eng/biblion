@@ -128,17 +128,21 @@
     try {
       const { doc, getDoc } = window._firebase;
       const snap = await getDoc(doc(db_firebase, 'libraries', uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        state.books = (data.books || []).map(b => ({ ...b, fileData: null, checkoutLog: b.checkoutLog || [] }));
-      } else {
-        state.books = [];
+      if (window.state) {
+        if (snap.exists()) {
+          const data = snap.data();
+          window.state.books = (data.books || []).map(b => ({ ...b, fileData: null, checkoutLog: b.checkoutLog || [] }));
+        } else {
+          window.state.books = [];
+        }
       }
     } catch(e) {
       console.warn('Firebase load error:', e);
-      state.books = [];
+      if (window.state) window.state.books = [];
     }
-    renderLibrary(); updateBadges(); updateStorageBar();
+    if (typeof renderLibrary === 'function') renderLibrary();
+    if (typeof updateBadges === 'function') updateBadges();
+    if (typeof updateStorageBar === 'function') updateStorageBar();
   };
 </script>
 <style>
@@ -544,11 +548,11 @@ document.head.appendChild(mLink);
       <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
       <span>/ <span id="storage-limit-label">10 GB</span></span>
     </div>
-    <button class="btn-header-action" onclick="downloadLibrary()">
+    <button class="btn-header-action" id="btn-download-lib">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 11V2M4 7l4 4 4-4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Descargar
     </button>
-    <button class="btn-upload" onclick="openUpload()">
+    <button class="btn-upload" id="btn-upload-book">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 5l4-4 4 4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Subir libro
     </button>
@@ -560,20 +564,20 @@ document.head.appendChild(mLink);
 <div class="toolbar">
   <div class="search-wrap">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    <input type="text" id="search-input" placeholder="Buscar título, autor, ISBN..." oninput="filterBooks()">
+    <input type="text" id="search-input" placeholder="Buscar título, autor, ISBN..." id="search-input-field">
   </div>
   <div class="filter-chips">
-    <div class="chip active" onclick="filterByStatus('all',this)">📚 Todos</div>
-    <div class="chip" onclick="filterByStatus('reading',this)">📖 Leyendo</div>
-    <div class="chip" onclick="filterByStatus('unread',this)">🔖 No leídos</div>
-    <div class="chip" onclick="filterByStatus('finished',this)">✅ Leídos</div>
-    <div class="chip" onclick="filterByStatus('pending',this)">⏳ Pendientes</div>
+    <div class="chip active" id="chip-all">📚 Todos</div>
+    <div class="chip" id="chip-reading">📖 Leyendo</div>
+    <div class="chip" id="chip-unread">🔖 No leídos</div>
+    <div class="chip" id="chip-finished">✅ Leídos</div>
+    <div class="chip" id="chip-pending">⏳ Pendientes</div>
   </div>
   <div class="view-toggle" style="margin-left:auto">
-    <button class="view-btn active" id="grid-btn" onclick="setView('grid')">
+    <button class="view-btn active" id="grid-btn" >
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
     </button>
-    <button class="view-btn" id="list-btn" onclick="setView('list')">
+    <button class="view-btn" id="list-btn" >
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></svg>
     </button>
   </div>
@@ -585,10 +589,10 @@ document.head.appendChild(mLink);
     <div class="sidebar-section">
       <h4>Biblioteca</h4>
       <ul>
-        <li class="active" onclick="setSection('all',this)"><span>📚</span> Todos <span class="badge" id="badge-all">0</span></li>
-        <li onclick="setSection('reading',this)"><span>📖</span> Leyendo <span class="badge" id="badge-reading">0</span></li>
-        <li onclick="setSection('finished',this)"><span>✅</span> Leídos <span class="badge" id="badge-finished">0</span></li>
-        <li onclick="setSection('wishlist',this)"><span>⭐</span> Favoritos <span class="badge" id="badge-favorites">0</span></li>
+        <li class="active" id="sec-all"><span>📚</span> Todos <span class="badge" id="badge-all">0</span></li>
+        <li id="sec-reading"><span>📖</span> Leyendo <span class="badge" id="badge-reading">0</span></li>
+        <li id="sec-finished"><span>✅</span> Leídos <span class="badge" id="badge-finished">0</span></li>
+        <li id="sec-wishlist"><span>⭐</span> Favoritos <span class="badge" id="badge-favorites">0</span></li>
       </ul>
     </div>
     <div class="sidebar-section">
@@ -1431,7 +1435,7 @@ function renderLibrary() {
       <div class="es-icon">📚</div>
       <h3>${state.books.length===0?'Tu biblioteca está vacía':'Sin resultados'}</h3>
       <p>${state.books.length===0?'Sube tu primer libro para comenzar.':'Prueba con otro término de búsqueda o filtro.'}</p>
-      ${state.books.length===0?'<button class="btn-upload" style="margin:0 auto" onclick="openUpload()">+ Subir primer libro</button>':''}
+      ${state.books.length===0?'<button class="btn-upload" style="margin:0 auto" id="btn-upload-book">+ Subir primer libro</button>':''}
     </div>`;
   } else {
     shelf.innerHTML = books.map(book => buildBookCard(book)).join('');
@@ -2433,9 +2437,51 @@ window.updateUserUI = updateUserUI;
 window.loadUserDataFirebase = loadUserDataFirebase;
 window.showToast = showToast;
 
+
+// ─── ATTACH EVENT LISTENERS AFTER DOM IS READY ───
+function attachEventListeners() {
+  // Filter chips
+  const chips = {
+    'chip-all': 'all', 'chip-reading': 'reading',
+    'chip-unread': 'unread', 'chip-finished': 'finished', 'chip-pending': 'pending'
+  };
+  Object.entries(chips).forEach(([id, status]) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', () => filterByStatus(status, el));
+  });
+
+  // Sidebar sections
+  const sections = {
+    'sec-all': 'all', 'sec-reading': 'reading',
+    'sec-finished': 'finished', 'sec-wishlist': 'wishlist'
+  };
+  Object.entries(sections).forEach(([id, section]) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', () => setSection(section, el));
+  });
+
+  // View toggle
+  const gridBtn = document.getElementById('grid-btn');
+  const listBtn = document.getElementById('list-btn');
+  if (gridBtn) gridBtn.addEventListener('click', () => setView('grid'));
+  if (listBtn) listBtn.addEventListener('click', () => setView('list'));
+
+  // Upload and download buttons
+  const uploadBtn = document.getElementById('btn-upload-book');
+  if (uploadBtn) uploadBtn.addEventListener('click', () => openUpload());
+
+  const downloadBtn = document.getElementById('btn-download-lib');
+  if (downloadBtn) downloadBtn.addEventListener('click', () => downloadLibrary());
+
+  // Search input
+  const searchField = document.getElementById('search-input-field');
+  if (searchField) searchField.addEventListener('input', () => filterBooks());
+}
+
 // ─── INIT ───
 async function init() {
   await initDB();
+  attachEventListeners();
   // Show auth overlay while waiting for Firebase to resolve auth state
   document.getElementById('auth-overlay').style.display = '';
   renderLibrary(); updateBadges(); updateStorageBar();
