@@ -53,16 +53,18 @@
   // Listen for auth state changes
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      state.currentUser = { name: user.displayName || user.email.split('@')[0], email: user.email, uid: user.uid };
+      if (window.state) window.state.currentUser = { name: user.displayName || user.email.split('@')[0], email: user.email, uid: user.uid };
       document.getElementById('auth-overlay').style.display = 'none';
-      updateUserUI();
-      await loadUserDataFirebase(user.uid);
-      showToast('👋 Bienvenido/a, ' + state.currentUser.name + '!');
+      if (typeof updateUserUI === 'function') updateUserUI();
+      if (typeof loadUserDataFirebase === 'function') await loadUserDataFirebase(user.uid);
+      if (typeof showToast === 'function') showToast('👋 Bienvenido/a, ' + (user.displayName || user.email.split('@')[0]) + '!');
     } else {
       // No user signed in — show auth overlay
-      state.currentUser = null;
+      if (window.state) window.state.currentUser = null;
       document.getElementById('auth-overlay').style.display = '';
-      renderLibrary(); updateBadges(); updateStorageBar();
+      if (typeof renderLibrary === 'function') renderLibrary();
+      if (typeof updateBadges === 'function') updateBadges();
+      if (typeof updateStorageBar === 'function') updateStorageBar();
     }
   });
 
@@ -141,84 +143,85 @@
 </script>
 <style>
   :root {
-    --ink: #1a1208;
-    --paper: #faf7f2;
-    --parchment: #f0ead8;
-    --parchment2: #e8dfc8;
-    --amber: #c8860a;
-    --amber-light: #f5c842;
-    --amber-glow: #fde68a;
-    --red-wine: #7c2d12;
-    --sage: #4a6741;
-    --steel: #2d3748;
-    --muted: #8a7d6b;
-    --card-shadow: 0 2px 8px rgba(26,18,8,0.12), 0 8px 32px rgba(26,18,8,0.08);
+    --ink: #0f0f14;
+    --paper: #ffffff;
+    --parchment: #f5f5f8;
+    --parchment2: #e8e8f0;
+    --amber: #5b3fa6;
+    --amber-light: #7c5abf;
+    --amber-glow: #ede9ff;
+    --red-wine: #1e2a4a;
+    --sage: #1e3a5f;
+    --steel: #1a1a2e;
+    --muted: #6b7080;
+    --accent-blue: #1e3a5f;
+    --card-shadow: 0 2px 8px rgba(15,15,20,0.08), 0 8px 32px rgba(15,15,20,0.06);
     --spine-width: 14px;
     --radius: 4px;
 
     /* Reader themes */
-    --reader-bg: #1a1208;
-    --reader-text: #e8dfc8;
-    --reader-surface: #231c10;
-    --reader-border: #3a3020;
-    --reader-muted: #a8967e;
+    --reader-bg: #0f0f14;
+    --reader-text: #e8e8f0;
+    --reader-surface: #1a1a2e;
+    --reader-border: #2a2a40;
+    --reader-muted: #8080a0;
     --reader-font: Georgia, 'Noto Serif', 'Times New Roman', serif;
     --reader-fontsize: 18px;
   }
 
   /* ── READER THEMES ── */
-  .theme-dark { --reader-bg:#1a1208; --reader-text:#e8dfc8; --reader-surface:#231c10; --reader-border:#3a3020; --reader-muted:#a8967e; }
-  .theme-sepia { --reader-bg:#f5efe0; --reader-text:#3b2e1e; --reader-surface:#ede4cd; --reader-border:#d4c9a8; --reader-muted:#8a7a5e; }
-  .theme-light { --reader-bg:#ffffff; --reader-text:#1a1208; --reader-surface:#f5f5f5; --reader-border:#e0e0e0; --reader-muted:#888; }
-  .theme-night { --reader-bg:#0d1117; --reader-text:#c9d1d9; --reader-surface:#161b22; --reader-border:#30363d; --reader-muted:#8b949e; }
+  .theme-dark { --reader-bg:#0f0f14; --reader-text:#e8e8f0; --reader-surface:#1a1a2e; --reader-border:#2a2a40; --reader-muted:#8080a0; }
+  .theme-sepia { --reader-bg:#fafafa; --reader-text:#1a1a2e; --reader-surface:#f0f0f5; --reader-border:#dcdce8; --reader-muted:#7070a0; }
+  .theme-light { --reader-bg:#ffffff; --reader-text:#0f0f14; --reader-surface:#f5f5f8; --reader-border:#e0e0ec; --reader-muted:#8080a0; }
+  .theme-night { --reader-bg:#080810; --reader-text:#c8c8e0; --reader-surface:#10101a; --reader-border:#20203a; --reader-muted:#7070a0; }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; overflow-x: hidden; }
 
   /* ─── TOPBAR ─── */
-  header { background: var(--ink); color: var(--paper); padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 20px rgba(0,0,0,0.3); }
+  header { background: #ffffff; color: var(--ink); padding: 0 2rem; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1.5px solid var(--parchment2); box-shadow: 0 1px 8px rgba(15,15,20,0.06); }
   .logo { font-family: Georgia, 'Noto Serif', 'Times New Roman', serif; font-size: 1.5rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 0.5rem; }
-  .logo span { color: var(--amber-light); font-style: italic; }
+  .logo span { color: var(--amber); font-style: italic; }
   .header-right { display: flex; align-items: center; gap: 1rem; }
-  .storage-bar-wrap { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: #a8967e; letter-spacing: 0.05em; cursor: pointer; }
-  .storage-bar-wrap:hover { color: var(--amber-light); }
-  .storage-bar { width: 90px; height: 4px; background: #3a3020; border-radius: 2px; overflow: hidden; }
+  .storage-bar-wrap { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: #8080a0; letter-spacing: 0.05em; cursor: pointer; }
+
+  .storage-bar { width: 90px; height: 4px; background: var(--parchment2); border-radius: 2px; overflow: hidden; }
   .storage-fill { height: 100%; background: linear-gradient(90deg, var(--amber), var(--amber-light)); border-radius: 2px; transition: width 0.5s; }
-  .btn-upload { background: var(--amber); color: var(--ink); border: none; padding: 0.4rem 1.1rem; border-radius: 20px; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight: 500; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; letter-spacing: 0.02em; }
-  .btn-upload:hover { background: var(--amber-light); transform: translateY(-1px); }
+  .btn-upload { background: var(--amber); color: #ffffff; border: none; padding: 0.4rem 1.1rem; border-radius: 20px; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight: 500; font-size: 0.82rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 0.4rem; letter-spacing: 0.02em; }
+  .btn-upload:hover { background: var(--amber-light); color: #ffffff; transform: translateY(-1px); }
 
   /* ─── TOOLBAR ─── */
-  .toolbar { background: var(--parchment); border-bottom: 1px solid var(--parchment2); padding: 0.75rem 2rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .toolbar { background: #ffffff; border-bottom: 1px solid var(--parchment2); padding: 0.75rem 2rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .search-wrap { flex: 1; min-width: 200px; max-width: 360px; position: relative; }
   .search-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
   .search-wrap input { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2.2rem; border: 1.5px solid var(--parchment2); border-radius: 20px; background: var(--paper); font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.85rem; color: var(--ink); outline: none; transition: border-color 0.2s; }
-  .search-wrap input:focus { border-color: var(--amber); }
+  .search-wrap input:focus { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-glow); }
   .filter-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; }
   .chip { padding: 0.3rem 0.85rem; border-radius: 20px; border: 1.5px solid var(--parchment2); background: var(--paper); font-size: 0.78rem; cursor: pointer; transition: all 0.15s; color: var(--muted); font-weight: 500; }
-  .chip:hover { border-color: var(--amber); color: var(--amber); }
-  .chip.active { background: var(--amber); color: var(--ink); border-color: var(--amber); }
+  .chip:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
+  .chip.active { background: var(--amber); color: #ffffff; border-color: var(--amber); }
   .view-toggle { display: flex; gap: 0.25rem; margin-left: auto; }
   .view-btn { width: 32px; height: 32px; border: 1.5px solid var(--parchment2); background: var(--paper); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; color: var(--muted); }
-  .view-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .view-btn.active { background: var(--amber); color: #ffffff; border-color: var(--amber); }
 
   /* ─── MAIN LAYOUT ─── */
   .app-body { display: flex; min-height: calc(100vh - 56px - 53px); }
-  .sidebar { width: 200px; flex-shrink: 0; background: var(--parchment); border-right: 1px solid var(--parchment2); padding: 1.5rem 1rem; }
+  .sidebar { width: 200px; flex-shrink: 0; background: var(--parchment); border-right: 1.5px solid var(--parchment2); padding: 1.5rem 1rem; }
   .sidebar h4 { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; font-weight: 500; }
   .sidebar ul { list-style: none; }
   .sidebar ul li { padding: 0.45rem 0.65rem; border-radius: 6px; font-size: 0.82rem; cursor: pointer; color: var(--steel); display: flex; align-items: center; gap: 0.5rem; transition: all 0.15s; margin-bottom: 0.1rem; }
   .sidebar ul li:hover { background: var(--parchment2); }
-  .sidebar ul li.active { background: var(--ink); color: var(--paper); }
+  .sidebar ul li.active { background: var(--amber); color: #ffffff; }
   .sidebar ul li .badge { margin-left: auto; font-size: 0.68rem; background: var(--parchment2); color: var(--muted); padding: 0.1rem 0.45rem; border-radius: 10px; }
-  .sidebar ul li.active .badge { background: #3a3020; color: #a8967e; }
+  .sidebar ul li.active .badge { background: rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); }
   .sidebar-section { margin-bottom: 1.5rem; }
   .genres { display: flex; flex-direction: column; gap: 0.1rem; }
   .genre-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
   /* ─── LIBRARY GRID ─── */
   .library-main { flex: 1; padding: 1.5rem 2rem 3rem; overflow-y: auto; }
-  .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.25rem; }
-  .section-header h2 { font-family: Georgia, 'Noto Serif', 'Times New Roman', serif; font-size: 1.3rem; font-weight: 400; }
+  .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1.5px solid var(--parchment2); }
+  .section-header h2 { font-family: Georgia, 'Noto Serif', 'Times New Roman', serif; font-size: 1.6rem; font-weight: 400; color: var(--ink); letter-spacing: -0.01em; }
   .section-header span { font-size: 0.78rem; color: var(--muted); }
   .bookshelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1.5rem 1.25rem; margin-bottom: 2.5rem; }
   .bookshelf.list-view { grid-template-columns: 1fr; gap: 0.5rem; }
@@ -226,7 +229,7 @@
   /* ─── BOOK CARD ─── */
   .book-card { cursor: pointer; transition: transform 0.2s; position: relative; }
   .book-card:hover { transform: translateY(-4px); }
-  .book-card:hover .book-cover { box-shadow: 0 12px 40px rgba(26,18,8,0.25); }
+  .book-card:hover .book-cover { box-shadow: 0 12px 40px rgba(91,63,166,0.2); }
   .book-cover { width: 100%; height: 180px; border-radius: 3px 6px 6px 3px; box-shadow: var(--card-shadow); position: relative; overflow: hidden; background: var(--parchment2); transition: box-shadow 0.2s; }
   .book-cover::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--spine-width); background: rgba(0,0,0,0.18); z-index: 1; }
   .book-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -248,7 +251,7 @@
   .bookshelf.list-view .book-actions { display: flex; gap: 0.4rem; }
 
   /* ─── UPLOAD MODAL ─── */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(26,18,8,0.7); backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,10,20,0.7); backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .modal-overlay.open { opacity: 1; pointer-events: all; }
   .modal { background: var(--paper); border-radius: 12px; width: min(540px, 92vw); max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 80px rgba(0,0,0,0.4); transform: translateY(20px); transition: transform 0.2s; }
   .modal-overlay.open .modal { transform: translateY(0); }
@@ -258,7 +261,7 @@
   .modal-close:hover { background: var(--parchment2); color: var(--ink); }
   .modal-body { padding: 1.5rem; }
   .dropzone { border: 2px dashed var(--parchment2); border-radius: 10px; padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--parchment); margin-bottom: 1.25rem; }
-  .dropzone:hover, .dropzone.dragover { border-color: var(--amber); background: #fdf9f0; }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--amber); background: #f0f0ff; }
   .dropzone .dz-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
   .dropzone h3 { font-size: 0.95rem; margin-bottom: 0.25rem; }
   .dropzone p { font-size: 0.78rem; color: var(--muted); }
@@ -267,7 +270,7 @@
   .form-row { margin-bottom: 1rem; }
   .form-row label { display: block; font-size: 0.78rem; font-weight: 500; color: var(--steel); margin-bottom: 0.35rem; letter-spacing: 0.02em; }
   .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 0.55rem 0.8rem; border: 1.5px solid var(--parchment2); border-radius: 6px; background: var(--paper); font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.85rem; color: var(--ink); outline: none; transition: border-color 0.2s; }
-  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--amber); }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--amber); box-shadow: 0 0 0 3px var(--amber-glow); }
   .form-row textarea { resize: vertical; min-height: 72px; }
   .form-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   .upload-progress { display: none; margin-bottom: 1rem; }
@@ -275,8 +278,8 @@
   .progress-track { height: 6px; background: var(--parchment2); border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--amber), var(--amber-light)); border-radius: 3px; transition: width 0.3s; width: 0%; }
   .progress-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; }
-  .btn-primary { width: 100%; padding: 0.7rem; background: var(--ink); color: var(--paper); border: none; border-radius: 6px; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em; }
-  .btn-primary:hover { background: #2d2518; transform: translateY(-1px); }
+  .btn-primary { width: 100%; padding: 0.7rem; background: var(--amber); color: #ffffff; border: none; border-radius: 6px; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em; }
+  .btn-primary:hover { background: var(--amber-light); transform: translateY(-1px); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   /* Cover preview in upload modal */
@@ -395,7 +398,7 @@
   .upgrade-box { background: var(--paper); border-radius: 14px; width: min(480px, 92vw); box-shadow: 0 24px 90px rgba(0,0,0,0.5); overflow: hidden; }
   .upgrade-header { background: var(--ink); padding: 1.5rem; text-align: center; }
   .upgrade-header h2 { font-family: Georgia, 'Noto Serif', 'Times New Roman', serif; color: var(--paper); font-size: 1.4rem; margin-bottom: 0.25rem; }
-  .upgrade-header p { color: #a8967e; font-size: 0.82rem; }
+  .upgrade-header p { color: #8080a0; font-size: 0.82rem; }
   .upgrade-plans { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; padding: 1.5rem; }
   .upgrade-plan { border: 2px solid var(--parchment2); border-radius: 10px; padding: 1.25rem 1rem; text-align: center; cursor: pointer; transition: all 0.2s; }
   .upgrade-plan:hover { border-color: var(--amber); }
@@ -426,12 +429,12 @@
   .user-menu-dropdown.open { opacity: 1; pointer-events: all; transform: translateY(0); }
   .user-menu-info { padding: 0.75rem 0.85rem 0.6rem; border-bottom: 1px solid #3a3020; margin-bottom: 0.4rem; }
   .user-menu-info strong { color: var(--paper); font-size: 0.88rem; display: block; }
-  .user-menu-info span { color: #a8967e; font-size: 0.72rem; }
+  .user-menu-info span { color: #8080a0; font-size: 0.72rem; }
   .user-menu-dropdown button { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.5rem 0.85rem; background: none; border: none; color: #c8b89a; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.82rem; cursor: pointer; border-radius: 6px; text-align: left; transition: background 0.1s; }
-  .user-menu-dropdown button:hover { background: #3a3020; color: var(--paper); }
-  .user-menu-dropdown .um-sep { height: 1px; background: #3a3020; margin: 0.3rem 0; }
+  .user-menu-dropdown button:hover { background: #2a2a40; color: var(--paper); }
+  .user-menu-dropdown .um-sep { height: 1px; background: #2a2a40; margin: 0.3rem 0; }
   .user-menu-dropdown button.danger { color: #f87171; }
-  .auth-overlay { position: fixed; inset: 0; background: rgba(26,18,8,0.92); backdrop-filter: blur(6px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+  .auth-overlay { position: fixed; inset: 0; background: rgba(10,10,20,0.92); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
   .auth-box { background: var(--paper); border-radius: 14px; width: min(420px, 94vw); box-shadow: 0 24px 90px rgba(0,0,0,0.5); overflow: hidden; }
   .auth-tabs { display: flex; border-bottom: 1px solid var(--parchment2); }
   .auth-tab { flex: 1; padding: 1rem; text-align: center; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.88rem; font-weight: 500; cursor: pointer; border: none; background: var(--parchment); color: var(--muted); transition: all 0.2s; letter-spacing: 0.02em; }
@@ -453,17 +456,17 @@
   .log-entry .log-time { color: var(--muted); white-space: nowrap; font-family: 'DM Mono',monospace; font-size: 0.68rem; }
   .log-empty { padding: 0.75rem 0.9rem; color: var(--muted); font-size: 0.78rem; }
   .status-pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.62rem; padding: 2px 7px; border-radius: 20px; font-weight: 600; letter-spacing: 0.04em; margin-top: 0.3rem; text-transform: uppercase; }
-  .status-pill.reading { background: #fde68a; color: #78350f; }
+  .status-pill.reading { background: #ede9ff; color: #5b3fa6; }
   .status-pill.finished { background: #d1fae5; color: #065f46; }
   .status-pill.unread { background: var(--parchment2); color: var(--muted); }
-  .status-pill.pending { background: #ede9fe; color: #5b21b6; }
+  .status-pill.pending { background: #e8f0fe; color: #1e3a5f; }
   .card-checkout-btns { display: flex; gap: 0.35rem; margin-top: 0.4rem; }
 
   /* Book edit strip */
-  .book-edit-strip { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(26,18,8,0.82); color: #f5c842; font-size: 0.6rem; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.08em; text-align: center; padding: 4px 0; opacity: 0; transition: opacity 0.18s; cursor: pointer; z-index: 3; backdrop-filter: blur(2px); }
+  .book-edit-strip { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(91,63,166,0.9); color: #ffffff; font-size: 0.6rem; font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.08em; text-align: center; padding: 4px 0; opacity: 0; transition: opacity 0.18s; cursor: pointer; z-index: 3; backdrop-filter: blur(2px); }
   .book-card:hover .book-edit-strip { opacity: 1; }
   /* Edit Book Modal */
-  .edit-book-overlay { position: fixed; inset: 0; background: rgba(26,18,8,0.75); backdrop-filter: blur(5px); z-index: 400; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .edit-book-overlay { position: fixed; inset: 0; background: rgba(10,10,20,0.75); backdrop-filter: blur(6px); z-index: 400; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .edit-book-overlay.open { opacity: 1; pointer-events: all; }
   .edit-book-modal { background: var(--paper); border-radius: 12px; width: min(500px, 94vw); max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 80px rgba(0,0,0,0.45); transform: translateY(18px); transition: transform 0.2s; }
   .edit-book-overlay.open .edit-book-modal { transform: translateY(0); }
@@ -479,8 +482,8 @@
   .ctx-menu { position: fixed; background: var(--ink); border: 1px solid #3a3020; border-radius: 8px; padding: 0.4rem; z-index: 400; min-width: 160px; box-shadow: 0 8px 30px rgba(0,0,0,0.4); opacity: 0; pointer-events: none; transition: opacity 0.1s; }
   .ctx-menu.open { opacity: 1; pointer-events: all; }
   .ctx-menu button { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.5rem 0.75rem; background: none; border: none; color: var(--paper); font-family: -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.82rem; cursor: pointer; border-radius: 5px; text-align: left; transition: background 0.1s; }
-  .ctx-menu button:hover { background: #3a3020; }
-  .ctx-menu .ctx-sep { height: 1px; background: #3a3020; margin: 0.25rem 0; }
+  .ctx-menu button:hover { background: #2a2a40; }
+  .ctx-menu .ctx-sep { height: 1px; background: #2a2a40; margin: 0.25rem 0; }
   .ctx-menu button.danger { color: #f87171; }
 </style>
 
@@ -536,10 +539,10 @@ document.head.appendChild(mLink);
 <header>
   <div class="logo">📚 Biblio<span>n</span></div>
   <div class="header-right">
-    <div class="storage-bar-wrap" onclick="openUpgradeModal()" title="Ampliar almacenamiento">
+    <div class="storage-bar-wrap" title="Almacenamiento usado">
       <span id="storage-used">0 MB</span>
       <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
-      <span>/ <span id="storage-limit-label">15 GB</span> ✦</span>
+      <span>/ <span id="storage-limit-label">10 GB</span></span>
     </div>
     <button class="btn-header-action" onclick="downloadLibrary()">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 11V2M4 7l4 4 4-4M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -597,8 +600,8 @@ document.head.appendChild(mLink);
       <div style="font-size:0.72rem;color:var(--muted);line-height:1.6">
         <div id="stat-books">0 libros</div>
         <div id="stat-size">0 MB usados</div>
-        <div id="stat-limit">15 GB disponibles</div>
-        <button onclick="openUpgradeModal()" style="margin-top:0.5rem;padding:0.3rem 0.75rem;background:var(--amber);border:none;border-radius:20px;font-size:0.7rem;cursor:pointer;font-weight:600;color:var(--ink)">✦ Ampliar</button>
+        <div id="stat-limit">10 GB disponibles</div>
+
       </div>
     </div>
   </aside>
@@ -653,9 +656,9 @@ document.head.appendChild(mLink);
   <div class="user-menu-info">
     <strong id="um-name">—</strong>
     <span id="um-email">—</span><br>
-    <span id="um-plan" style="color:var(--amber);font-size:0.7rem;font-weight:600">Plan Gratis · 15 GB</span>
+    <span id="um-plan" style="color:var(--amber);font-size:0.7rem;font-weight:600">Plan Personal · 10 GB</span>
   </div>
-  <button onclick="closeUserMenu();openUpgradeModal()">✦ Ampliar almacenamiento</button>
+
   <div class="um-sep"></div>
   <button class="danger" onclick="doLogout()">🚪 Cerrar sesión</button>
 </div>
@@ -823,39 +826,7 @@ document.head.appendChild(mLink);
   </div>
 </div>
 
-<!-- ─── STORAGE UPGRADE MODAL ─── -->
-<div class="upgrade-modal" id="upgrade-modal">
-  <div class="upgrade-box">
-    <div class="upgrade-header">
-      <h2>✦ Ampliar Almacenamiento</h2>
-      <p>Más espacio para más libros en tu biblioteca</p>
-    </div>
-    <div class="upgrade-plans">
-      <div class="upgrade-plan">
-        <div class="plan-name">Básico</div>
-        <div class="plan-storage">50 GB</div>
-        <div class="plan-price">$2.99 / mes</div>
-        <button class="plan-btn" onclick="simulateUpgrade(50,'Básico')">Elegir</button>
-      </div>
-      <div class="upgrade-plan featured">
-        <div class="plan-name">⭐ Popular</div>
-        <div class="plan-storage">200 GB</div>
-        <div class="plan-price">$7.99 / mes</div>
-        <button class="plan-btn" onclick="simulateUpgrade(200,'Popular')">Elegir</button>
-      </div>
-      <div class="upgrade-plan">
-        <div class="plan-name">Ilimitado</div>
-        <div class="plan-storage">1 TB</div>
-        <div class="plan-price">$14.99 / mes</div>
-        <button class="plan-btn" onclick="simulateUpgrade(1000,'Ilimitado')">Elegir</button>
-      </div>
-    </div>
-    <p class="upgrade-note">
-      💡 Los pagos son procesados de forma segura. Puedes cancelar en cualquier momento.<br>
-      <a href="#" onclick="document.getElementById('upgrade-modal').classList.remove('open');return false" style="color:var(--amber)">No por ahora</a>
-    </p>
-  </div>
-</div>
+<!-- upgrade modal removed -->
 
 <!-- Context Menu -->
 <!-- Context Menu (clic derecho / clic largo) -->
@@ -1030,7 +1001,7 @@ async function deleteFromR2(bookId, userUid) {
   } catch(e) { console.warn('R2 delete failed:', e); }
 }
 
-const DEFAULT_STORAGE = 15 * 1024 * 1024 * 1024;
+const DEFAULT_STORAGE = 10 * 1024 * 1024 * 1024;
 let MAX_STORAGE = DEFAULT_STORAGE;
 
 let state = {
@@ -1039,6 +1010,7 @@ let state = {
   currentBook: null, notesOpen: false, fontSize: 18,
   currentUser: null, readerTheme: 'dark', readerFont: 'playfair',
 };
+window.state = state; // expose to Firebase module
 
 // ─── PAGED READER STATE ───
 let pages = [];
@@ -1150,7 +1122,7 @@ function openUpgradeModal() {
 function simulateUpgrade(gb, planName) {
   MAX_STORAGE = gb * 1024 * 1024 * 1024;
   document.getElementById('upgrade-modal').classList.remove('open');
-  document.getElementById('storage-limit-label').textContent = gb >= 1000 ? '1 TB' : gb + ' GB';
+  // document.getElementById('storage-limit-label').textContent = gb >= 1000 ? '1 TB' : gb + ' GB';
   document.getElementById('stat-limit').textContent = (gb >= 1000 ? '1 TB' : gb + ' GB') + ' disponibles';
   document.getElementById('um-plan').textContent = `Plan ${planName} · ${gb >= 1000 ? '1 TB' : gb + ' GB'}`;
   updateStorageBar();
@@ -1236,7 +1208,7 @@ function processFile(file) {
   const ext = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowed.includes(ext)) { showToast('❌ Formato no soportado: ' + ext); return; }
   const used = state.books.reduce((s,b) => s + (b.size||0), 0);
-  if (used + file.size > MAX_STORAGE) { showToast('❌ Sin espacio. Amplía tu almacenamiento o elimina libros.'); openUpgradeModal(); return; }
+  if (used + file.size > MAX_STORAGE) { showToast('❌ Sin espacio. Elimina libros para liberar espacio.'); return; }
   pendingFile = file;
   const format = ext.replace('.','').toUpperCase();
   document.getElementById('dz-icon').textContent = ext==='.pdf'?'📄':ext==='.epub'?'📘':'📗';
@@ -1351,7 +1323,7 @@ async function uploadBook() {
   document.getElementById('upload-progress').classList.add('show');
   const ext = pendingFile ? pendingFile.name.split('.').pop().toLowerCase() : 'epub';
   const id = 'book_' + Date.now();
-  const genreColors = {'Ficción':'#7c2d12','No ficción':'#1e40af','Ciencia ficción':'#1e3a5f','Fantasía':'#4a1942','Misterio':'#1c2b1c','Romance':'#7c1f3e','Historia':'#5c4a1e','Ciencia':'#0e3d4a','Tecnología':'#1a3a4a','Arte':'#4a2810','Filosofía':'#2d2518','Biografía':'#3a2d1e'};
+  const genreColors = {'Ficción':'#7c2d12','No ficción':'#1e40af','Ciencia ficción':'#1e3a5f','Fantasía':'#4a1942','Misterio':'#1c2b1c','Romance':'#7c1f3e','Historia':'#5c4a1e','Ciencia':'#0e3d4a','Tecnología':'#1a3a4a','Arte':'#4a2810','Filosofía':'#1a1a2e','Biografía':'#3a2d1e'};
   const genre = document.getElementById('f-genre').value;
   let coverUrl = document.getElementById('f-cover').value;
   let fileData = null;
@@ -1411,7 +1383,7 @@ async function uploadBook() {
     format: ext, size: pendingFile ? pendingFile.size : 0,
     dateAdded: new Date().toISOString(),
     progress: 0, status: 'unread', favorite: false,
-    color: genreColors[genre] || '#2d2518', notes: [], checkoutLog: [],
+    color: genreColors[genre] || '#1a1a2e', notes: [], checkoutLog: [],
     r2Url: r2Url || null,        // URL en R2 si se subió a la nube
     localOnly: !r2Url,           // true si solo está guardado localmente
   };
@@ -1475,11 +1447,11 @@ function buildBookCard(book) {
   const favMark = book.favorite ? '<div class="book-badge" style="background:var(--amber-light);top:6px;left:22px">★</div>' : '';
   const cloudMark = book.r2Url ? '<div class="book-badge" style="background:#3b82f6;color:white;top:6px;right:6px;font-size:0.6rem">☁️</div>' : '';
   const coverHtml = book.coverUrl ? `<img src="${book.coverUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="${book.title}">` : '';
-  const plBg = book.color || '#2d2518';
+  const plBg = book.color || '#1a1a2e';
   const placeholder = `<div class="cover-placeholder" style="background:${plBg};display:${book.coverUrl?'none':'flex'}">
     <div class="cp-genre">${genreEmoji[book.genre]||'📚'} ${book.genre||''}</div>
     <div class="cp-title" style="color:#e8dfc8">${book.title}</div>
-    <div class="cp-author" style="color:#a8967e">${book.author}</div>
+    <div class="cp-author" style="color:#8080a0">${book.author}</div>
   </div>`;
   const checkoutBtns = `<div class="card-checkout-btns" onclick="event.stopPropagation()">
     <button class="btn-checkin" onclick="checkIn('${book.id}')">▶ Entrada</button>
@@ -2020,7 +1992,7 @@ function confirmDeleteBook(id) {
   const book = state.books.find(b=>b.id===id);
   if (!book) return;
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,18,8,0.7);backdrop-filter:blur(4px);z-index:999;display:flex;align-items:center;justify-content:center';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,10,20,0.7);backdrop-filter:blur(6px);z-index:999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = `
     <div style="background:var(--paper);border-radius:12px;padding:2rem;width:min(360px,90vw);box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center">
       <div style="font-size:2.5rem;margin-bottom:0.75rem">🗑</div>
@@ -2405,7 +2377,7 @@ function saveEditBook() {
   const title = document.getElementById('edit-f-title').value.trim();
   const author = document.getElementById('edit-f-author').value.trim();
   if (!title || !author) { showToast('⚠️ Título y autor son requeridos'); return; }
-  const genreColors = {'Ficción':'#7c2d12','No ficción':'#1e40af','Ciencia ficción':'#1e3a5f','Fantasía':'#4a1942','Misterio':'#1c2b1c','Romance':'#7c1f3e','Historia':'#5c4a1e','Ciencia':'#0e3d4a','Tecnología':'#1a3a4a','Arte':'#4a2810','Filosofía':'#2d2518','Biografía':'#3a2d1e'};
+  const genreColors = {'Ficción':'#7c2d12','No ficción':'#1e40af','Ciencia ficción':'#1e3a5f','Fantasía':'#4a1942','Misterio':'#1c2b1c','Romance':'#7c1f3e','Historia':'#5c4a1e','Ciencia':'#0e3d4a','Tecnología':'#1a3a4a','Arte':'#4a2810','Filosofía':'#1a1a2e','Biografía':'#3a2d1e'};
   const genre = document.getElementById('edit-f-genre').value;
   book.title = title;
   book.author = author;
